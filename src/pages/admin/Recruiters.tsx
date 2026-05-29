@@ -1,29 +1,36 @@
 import { useState, useEffect } from 'react'
-import { Plus, Edit2, Mail, Phone, Building2, Send, RefreshCw, Eye, UserCheck, UserX, Trash2 } from 'lucide-react'
+import {
+  Box, Button, Card, CardContent, Chip, Dialog, DialogActions,
+  DialogContent, DialogTitle, Divider, Grid, IconButton, Stack,
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
+  TextField, Tooltip, Typography, Avatar, Alert, alpha,
+} from '@mui/material'
+import { Plus, Edit2, Mail, Phone, Send, RefreshCw, Eye, UserCheck, UserX, Trash2, X } from 'lucide-react'
 import { adminApi } from '../../services/api'
 import type { Recruiter, Domain } from '../../types'
 
 type RecruiterStatus = 'active' | 'inactive' | 'invited' | 'pending'
-
 interface ExtendedRecruiter extends Omit<Recruiter, 'status'> {
-  status: RecruiterStatus
-  invited_at?: string | null
-  accepted_at?: string | null
+  status: RecruiterStatus; invited_at?: string | null; accepted_at?: string | null
 }
+
+const STATUS_COLOR: Record<RecruiterStatus, 'success' | 'warning' | 'error' | 'default'> = {
+  active: 'success', invited: 'warning', inactive: 'error', pending: 'default',
+}
+
+const fmt = (iso?: string | null) => iso ? new Date(iso).toLocaleDateString() : '—'
+const initials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
 
 export default function Recruiters() {
   const [recruiters, setRecruiters] = useState<ExtendedRecruiter[]>([])
-  const [domains,    setDomains]    = useState<Domain[]>([])
-  const [showForm, setShowForm] = useState(false)
+  const [domains, setDomains] = useState<Domain[]>([])
+  const [formOpen, setFormOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-  const [selectedRecruiter, setSelectedRecruiter] = useState<ExtendedRecruiter | null>(null)
-  const [confirmRecruiter, setConfirmRecruiter] = useState<ExtendedRecruiter | null>(null)
-  const [confirmAction, setConfirmAction] = useState<'activate' | 'deactivate' | null>(null)
-  const [confirmLoading, setConfirmLoading] = useState(false)
-  const [deleteConfirmRecruiter, setDeleteConfirmRecruiter] = useState<ExtendedRecruiter | null>(null)
-  const [deleteConfirmLoading, setDeleteConfirmLoading] = useState(false)
-
+  const [viewRecruiter, setViewRecruiter] = useState<ExtendedRecruiter | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<ExtendedRecruiter | null>(null)
+  const [statusTarget, setStatusTarget] = useState<{ r: ExtendedRecruiter; action: 'activate' | 'deactivate' } | null>(null)
+  const [actionLoading, setActionLoading] = useState(false)
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
@@ -33,605 +40,213 @@ export default function Recruiters() {
 
   useEffect(() => {
     adminApi.getDomains().then(({ domains: ds }) => setDomains(ds)).catch(() => {})
-    loadRecruiters()
+    load()
   }, [])
 
-  const loadRecruiters = () => {
-    adminApi.getRecruiters().then(list => {
-      setRecruiters(list as ExtendedRecruiter[])
-    }).catch(() => {})
-  }
+  const load = () => adminApi.getRecruiters().then(list => setRecruiters(list as ExtendedRecruiter[])).catch(() => {})
 
-  const handleOpenForm = (recruiter?: ExtendedRecruiter) => {
-    if (recruiter) {
-      setEditingId(recruiter.id)
-      const parts = recruiter.full_name.split(/\s+/)
-      setFirstName(parts[0] || '')
-      setLastName(parts.slice(1).join(' ') || '')
-      setEmail(recruiter.email)
-      setPhone(recruiter.phone || '')
-      setCompany(recruiter.company || '')
-      setSelectedDomains(recruiter.domain_ids)
+  const openForm = (r?: ExtendedRecruiter) => {
+    if (r) {
+      setEditingId(r.id)
+      const parts = r.full_name.split(/\s+/)
+      setFirstName(parts[0] || ''); setLastName(parts.slice(1).join(' ') || '')
+      setEmail(r.email); setPhone(r.phone || ''); setCompany(r.company || '')
+      setSelectedDomains(r.domain_ids)
     } else {
-      setEditingId(null)
-      setFirstName('')
-      setLastName('')
-      setEmail('')
-      setPhone('')
-      setCompany('')
-      setSelectedDomains([])
+      setEditingId(null); setFirstName(''); setLastName(''); setEmail(''); setPhone(''); setCompany(''); setSelectedDomains([])
     }
-    setShowForm(true)
-  }
-
-  const handleCloseForm = () => {
-    setShowForm(false)
-    setEditingId(null)
+    setFormOpen(true)
   }
 
   const handleSave = async () => {
-    if (!firstName.trim() || !lastName.trim() || !email.trim()) {
-      alert('First name, last name, and email are required')
-      return
-    }
-    if (!company.trim()) {
-      alert('Company ID is required')
-      return
-    }
-
-    if (editingId) {
-      try {
-        setSaving(true)
-        await adminApi.updateRecruiter(editingId, {
-          first_name: firstName.trim(),
-          last_name: lastName.trim(),
-          full_name: `${firstName.trim()} ${lastName.trim()}`,
-          email: email.trim(),
-          phone: phone.trim() || undefined,
-        })
-        loadRecruiters()
-      } catch (err: any) {
-        alert(err?.message || 'Failed to update recruiter')
-        return
-      } finally {
-        setSaving(false)
-      }
-    } else {
-      try {
-        setSaving(true)
-        await adminApi.createRecruiter({
-          company_id: company.trim(),
-          first_name: firstName.trim(),
-          last_name: lastName.trim(),
-          email: email.trim(),
-          phone: phone.trim() || undefined,
-        })
-        loadRecruiters()
-      } catch (err: any) {
-        alert(err?.message || 'Failed to add recruiter')
-        return
-      } finally {
-        setSaving(false)
-      }
-    }
-
-    handleCloseForm()
-  }
-
-  const openStatusConfirm = (recruiter: ExtendedRecruiter) => {
-    const nextAction = recruiter.status === 'inactive' ? 'activate' : 'deactivate'
-    setConfirmRecruiter(recruiter)
-    setConfirmAction(nextAction)
-  }
-
-  const closeStatusConfirm = () => {
-    if (confirmLoading) return
-    setConfirmRecruiter(null)
-    setConfirmAction(null)
-  }
-
-  const handleConfirmStatusAction = async () => {
-    if (!confirmRecruiter || !confirmAction) return
+    if (!firstName.trim() || !lastName.trim() || !email.trim() || !company.trim()) return
+    setSaving(true)
     try {
-      setConfirmLoading(true)
-      if (confirmAction === 'activate') {
-        await adminApi.updateRecruiter(confirmRecruiter.id, { status: 'active', is_active: true })
+      if (editingId) {
+        await adminApi.updateRecruiter(editingId, { first_name: firstName.trim(), last_name: lastName.trim(), full_name: `${firstName.trim()} ${lastName.trim()}`, email: email.trim(), phone: phone.trim() || undefined })
       } else {
-        await adminApi.deleteRecruiter(confirmRecruiter.id)
+        await adminApi.createRecruiter({ company_id: company.trim(), first_name: firstName.trim(), last_name: lastName.trim(), email: email.trim(), phone: phone.trim() || undefined })
       }
-      loadRecruiters()
-      setSelectedRecruiter((prev) => {
-        if (!prev || prev.id !== confirmRecruiter.id) return prev
-        return { ...prev, status: confirmAction === 'activate' ? 'active' : 'inactive' }
-      })
-      setConfirmRecruiter(null)
-      setConfirmAction(null)
-    } catch (err: any) {
-      alert(err?.message || `Failed to ${confirmAction} recruiter`)
-    } finally {
-      setConfirmLoading(false)
-    }
+      load(); setFormOpen(false)
+    } catch (err: any) { alert(err?.message || 'Failed to save') }
+    finally { setSaving(false) }
   }
 
-  const handleResendInvite = async (id: string) => {
+  const handleStatusAction = async () => {
+    if (!statusTarget) return
+    setActionLoading(true)
     try {
-      await adminApi.resendInvitation(id)
-      alert('Invitation resent successfully')
-    } catch (err: any) {
-      alert(err?.message || 'Failed to resend invitation')
-    }
+      if (statusTarget.action === 'activate') await adminApi.updateRecruiter(statusTarget.r.id, { status: 'active', is_active: true })
+      else await adminApi.deleteRecruiter(statusTarget.r.id)
+      load(); setStatusTarget(null)
+    } catch (err: any) { alert(err?.message || 'Failed') }
+    finally { setActionLoading(false) }
   }
 
-  const handleDeleteRecruiter = (recruiter: ExtendedRecruiter) => {
-    setDeleteConfirmRecruiter(recruiter)
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    setActionLoading(true)
+    try { await adminApi.deleteRecruiter(deleteTarget.id); load(); setDeleteTarget(null) }
+    catch (err: any) { alert(err?.message || 'Failed to delete') }
+    finally { setActionLoading(false) }
   }
 
-  const closeDeleteConfirmModal = () => {
-    if (deleteConfirmLoading) return
-    setDeleteConfirmRecruiter(null)
-  }
-
-  const handleConfirmDelete = async () => {
-    if (!deleteConfirmRecruiter) return
-
-    try {
-      setDeleteConfirmLoading(true)
-      await adminApi.deleteRecruiter(deleteConfirmRecruiter.id)
-      loadRecruiters()
-      if (selectedRecruiter?.id === deleteConfirmRecruiter.id) {
-        setSelectedRecruiter(null)
-      }
-      setDeleteConfirmRecruiter(null)
-    } catch (err: any) {
-      alert(err?.message || 'Failed to delete recruiter')
-    } finally {
-      setDeleteConfirmLoading(false)
-    }
-  }
-
-  const toggleDomain = (domainId: string) => {
-    if (selectedDomains.includes(domainId)) {
-      setSelectedDomains(selectedDomains.filter(d => d !== domainId))
-    } else {
-      setSelectedDomains([...selectedDomains, domainId])
-    }
-  }
-
-  const statusLabel = (s: RecruiterStatus) => {
-    switch (s) {
-      case 'invited': return 'Invited'
-      case 'active':  return 'Active'
-      case 'inactive': return 'Inactive'
-      default:        return 'Pending'
-    }
-  }
-
-  const statusClass = (s: RecruiterStatus) => {
-    switch (s) {
-      case 'active':  return 'badge active'
-      case 'invited': return 'badge draft'
-      case 'inactive': return 'badge archived'
-      default:        return 'badge draft'
-    }
-  }
-
-  const formatDate = (iso?: string | null) => {
-    if (!iso) return '—'
-    const d = new Date(iso)
-    if (Number.isNaN(d.getTime())) return '—'
-    return d.toLocaleDateString()
+  const handleResend = async (id: string) => {
+    try { await adminApi.resendInvitation(id); alert('Invitation resent') }
+    catch (err: any) { alert(err?.message || 'Failed') }
   }
 
   return (
-    <div>
-      <div className="page-header">
-        <h1>Recruiters</h1>
-        <p>Manage expert recruiters and their assigned domains</p>
-      </div>
+    <Box sx={{ p: { xs: 2, md: 3 } }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+        <Box>
+          <Typography variant="h5" sx={{ fontWeight: 700, letterSpacing: '-0.02em' }}>Recruiters</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>Manage expert recruiters and their domains</Typography>
+        </Box>
+        <Button variant="contained" startIcon={<Plus size={16} />} onClick={() => openForm()}>Add Recruiter</Button>
+      </Box>
 
-      <div className="flex justify-between items-center mb-4">
-        <span className="text-muted">{recruiters.length} recruiters</span>
-        <button className="btn btn-primary" onClick={() => handleOpenForm()}>
-          <Plus size={16} /> Add Recruiter
-        </button>
-      </div>
+      <Card>
+        <TableContainer>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Name</TableCell>
+                <TableCell>Email</TableCell>
+                <TableCell>Phone</TableCell>
+                <TableCell>Company</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Invited</TableCell>
+                <TableCell>Accepted</TableCell>
+                <TableCell align="right">Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {recruiters.length === 0 ? (
+                <TableRow><TableCell colSpan={8} align="center" sx={{ py: 6, color: 'text.secondary' }}>No recruiters yet. Add your first recruiter.</TableCell></TableRow>
+              ) : recruiters.map(r => (
+                <TableRow key={r.id} hover>
+                  <TableCell>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      <Avatar sx={{ width: 34, height: 34, bgcolor: 'rgba(99,102,241,0.15)', color: 'primary.main', fontSize: 12, fontWeight: 700 }}>{initials(r.full_name)}</Avatar>
+                      <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>{r.full_name}</Typography>
+                        <Typography variant="caption" color="text.secondary">{r.company || '—'}</Typography>
+                      </Box>
+                    </Box>
+                  </TableCell>
+                  <TableCell><Typography variant="body2" color="text.secondary">{r.email}</Typography></TableCell>
+                  <TableCell><Typography variant="body2" color="text.secondary">{r.phone || '—'}</Typography></TableCell>
+                  <TableCell><Typography variant="body2" color="text.secondary">{r.company || '—'}</Typography></TableCell>
+                  <TableCell><Chip label={r.status} size="small" color={STATUS_COLOR[r.status]} /></TableCell>
+                  <TableCell><Typography variant="caption" color="text.secondary">{fmt(r.invited_at)}</Typography></TableCell>
+                  <TableCell><Typography variant="caption" color="text.secondary">{fmt(r.accepted_at)}</Typography></TableCell>
+                  <TableCell align="right">
+                    <Stack direction="row" spacing={0.5} sx={{ justifyContent: 'flex-end' }}>
+                      <Tooltip title="View"><IconButton size="small" onClick={() => setViewRecruiter(r)}><Eye size={15} /></IconButton></Tooltip>
+                      {r.status === 'invited' && <Tooltip title="Resend invite"><IconButton size="small" onClick={() => handleResend(r.id)}><RefreshCw size={15} /></IconButton></Tooltip>}
+                      <Tooltip title="Edit"><IconButton size="small" onClick={() => openForm(r)}><Edit2 size={15} /></IconButton></Tooltip>
+                      <Tooltip title={r.status === 'inactive' ? 'Activate' : 'Deactivate'}>
+                        <IconButton size="small" color={r.status === 'inactive' ? 'success' : 'warning'} onClick={() => setStatusTarget({ r, action: r.status === 'inactive' ? 'activate' : 'deactivate' })}>
+                          {r.status === 'inactive' ? <UserCheck size={15} /> : <UserX size={15} />}
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Delete"><IconButton size="small" color="error" onClick={() => setDeleteTarget(r)}><Trash2 size={15} /></IconButton></Tooltip>
+                    </Stack>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Card>
 
-      {showForm && (
-        <div className="card mb-4" style={{ background: 'var(--color-bg)', borderColor: 'var(--color-primary)' }}>
-          <h3 style={{ marginBottom: 16, marginTop: 0 }}>
-            {editingId ? 'Edit Recruiter' : 'Add New Recruiter'}
-          </h3>
-
+      {/* Add/Edit Dialog */}
+      <Dialog open={formOpen} onClose={() => setFormOpen(false)} maxWidth="sm" fullWidth slotProps={{ paper: { sx: { bgcolor: 'background.paper' } } }}>
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          {editingId ? 'Edit Recruiter' : 'Add New Recruiter'}
+          <IconButton size="small" onClick={() => setFormOpen(false)}><X size={18} /></IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
           {!editingId && (
-            <div className="signin-hint" style={{ marginBottom: 16, padding: '10px 14px', background: 'var(--color-primary-light)', borderRadius: 6, fontSize: 13 }}>
-              <Send size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} />
-              An invitation email will be sent to the recruiter. After they accept,
-              login credentials will be emailed automatically.
-            </div>
+            <Alert severity="info" icon={<Send size={16} />} sx={{ mb: 2 }}>
+              An invitation email will be sent. After accepting, login credentials will be emailed automatically.
+            </Alert>
           )}
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 6 }}><TextField fullWidth label="First Name *" value={firstName} onChange={e => setFirstName(e.target.value)} size="small" /></Grid>
+            <Grid size={{ xs: 6 }}><TextField fullWidth label="Last Name *" value={lastName} onChange={e => setLastName(e.target.value)} size="small" /></Grid>
+            <Grid size={{ xs: 6 }}><TextField fullWidth label="Email *" type="email" value={email} onChange={e => setEmail(e.target.value)} size="small" /></Grid>
+            <Grid size={{ xs: 6 }}><TextField fullWidth label="Phone" value={phone} onChange={e => setPhone(e.target.value)} size="small" /></Grid>
+            <Grid size={{ xs: 12 }}><TextField fullWidth label="Company ID *" value={company} onChange={e => setCompany(e.target.value)} size="small" /></Grid>
+            {domains.length > 0 && (
+              <Grid size={{ xs: 12 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block', fontWeight: 600 }}>ASSIGNED DOMAINS (OPTIONAL)</Typography>
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                  {domains.map(d => (
+                    <Chip key={d.id} label={d.name} size="small" clickable
+                      color={selectedDomains.includes(d.id) ? 'primary' : 'default'}
+                      variant={selectedDomains.includes(d.id) ? 'filled' : 'outlined'}
+                      onClick={() => setSelectedDomains(prev => prev.includes(d.id) ? prev.filter(x => x !== d.id) : [...prev, d.id])} />
+                  ))}
+                </Box>
+              </Grid>
+            )}
+          </Grid>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button variant="outlined" onClick={() => setFormOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={handleSave} disabled={saving || !firstName.trim() || !lastName.trim() || !email.trim() || !company.trim()} startIcon={!editingId ? <Send size={16} /> : undefined}>
+            {saving ? 'Saving…' : editingId ? 'Update' : 'Add & Send Invitation'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label>First Name *</label>
-              <input
-                className="form-input"
-                placeholder="First name"
-                value={firstName}
-                onChange={e => setFirstName(e.target.value)}
-              />
-            </div>
-            <div className="form-group">
-              <label>Last Name *</label>
-              <input
-                className="form-input"
-                placeholder="Last name"
-                value={lastName}
-                onChange={e => setLastName(e.target.value)}
-              />
-            </div>
-          </div>
+      {/* View Dialog */}
+      <Dialog open={!!viewRecruiter} onClose={() => setViewRecruiter(null)} maxWidth="xs" fullWidth slotProps={{ paper: { sx: { bgcolor: 'background.paper' } } }}>
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          Recruiter Details <IconButton size="small" onClick={() => setViewRecruiter(null)}><X size={18} /></IconButton>
+        </DialogTitle>
+        {viewRecruiter && (
+          <DialogContent dividers>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+              <Avatar sx={{ width: 48, height: 48, bgcolor: 'rgba(99,102,241,0.15)', color: 'primary.main', fontWeight: 700 }}>{initials(viewRecruiter.full_name)}</Avatar>
+              <Box><Typography sx={{ fontWeight: 700 }}>{viewRecruiter.full_name}</Typography><Chip label={viewRecruiter.status} size="small" color={STATUS_COLOR[viewRecruiter.status]} /></Box>
+            </Box>
+            <Stack spacing={1.5}>
+              {[{ icon: Mail, label: viewRecruiter.email }, { icon: Phone, label: viewRecruiter.phone || '—' }].map(({ icon: Icon, label }) => (
+                <Box key={label} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><Icon size={15} color="#94a3b8" /><Typography variant="body2">{label}</Typography></Box>
+              ))}
+              <Divider />
+              <Box><Typography variant="caption" color="text.secondary">Invited</Typography><Typography variant="body2">{fmt(viewRecruiter.invited_at)}</Typography></Box>
+              <Box><Typography variant="caption" color="text.secondary">Accepted</Typography><Typography variant="body2">{fmt(viewRecruiter.accepted_at)}</Typography></Box>
+            </Stack>
+          </DialogContent>
+        )}
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button variant="outlined" onClick={() => setViewRecruiter(null)}>Close</Button>
+        </DialogActions>
+      </Dialog>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label>Email *</label>
-              <input
-                className="form-input"
-                type="email"
-                placeholder="Email address"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-              />
-            </div>
-            <div className="form-group">
-              <label>Phone</label>
-              <input
-                className="form-input"
-                type="tel"
-                placeholder="Phone number"
-                value={phone}
-                onChange={e => setPhone(e.target.value)}
-              />
-            </div>
-          </div>
+      {/* Delete Confirm */}
+      <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth slotProps={{ paper: { sx: { bgcolor: 'background.paper' } } }}>
+        <DialogTitle>Delete Recruiter</DialogTitle>
+        <DialogContent><Typography variant="body2" color="text.secondary">Permanently delete <strong>{deleteTarget?.full_name}</strong>? This cannot be undone.</Typography></DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button variant="outlined" onClick={() => setDeleteTarget(null)} disabled={actionLoading}>Cancel</Button>
+          <Button variant="contained" color="error" onClick={handleDelete} disabled={actionLoading}>{actionLoading ? 'Deleting…' : 'Delete'}</Button>
+        </DialogActions>
+      </Dialog>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label>Company ID *</label>
-              <input
-                className="form-input"
-                placeholder="Company ID"
-                value={company}
-                onChange={e => setCompany(e.target.value)}
-              />
-            </div>
-          </div>
-
-          {domains.length > 0 && (
-            <div className="form-group">
-              <label>Assigned Domains (optional)</label>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
-                {domains.map(d => (
-                  <button
-                    key={d.id}
-                    onClick={() => toggleDomain(d.id)}
-                    style={{
-                      padding: '8px 14px',
-                      borderRadius: 6,
-                      border: '1px solid',
-                      fontWeight: 600,
-                      fontSize: 13,
-                      cursor: 'pointer',
-                      fontFamily: 'inherit',
-                      transition: 'all 0.15s',
-                      backgroundColor: selectedDomains.includes(d.id)
-                        ? 'var(--color-primary)'
-                        : 'var(--color-surface)',
-                      borderColor: selectedDomains.includes(d.id)
-                        ? 'var(--color-primary)'
-                        : 'var(--color-border)',
-                      color: selectedDomains.includes(d.id)
-                        ? 'white'
-                        : 'var(--color-text)',
-                    }}
-                  >
-                    {d.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="btn-group" style={{ marginTop: 20 }}>
-            <button className="btn btn-secondary" onClick={handleCloseForm}>
-              Cancel
-            </button>
-            <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-              {saving
-                ? 'Saving...'
-                : editingId
-                  ? 'Update Recruiter'
-                  : 'Add & Send Invitation'
-              }
-            </button>
-          </div>
-        </div>
-      )}
-
-      {recruiters.length === 0 ? (
-        <div className="empty-state">
-          <h3>No recruiters yet</h3>
-          <p className="text-muted">Add your first recruiter to get started.</p>
-        </div>
-      ) : (
-        <div className="table-container">
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ minWidth: 820 }}>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Phone</th>
-                  <th>Company</th>
-                  <th>Status</th>
-                  <th>Invited</th>
-                  <th>Accepted</th>
-                  <th style={{ textAlign: 'right' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recruiters.map(recruiter => (
-                  <tr key={recruiter.id}>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <span
-                          style={{
-                            width: 34,
-                            height: 34,
-                            borderRadius: '50%',
-                            background: 'var(--color-primary-light)',
-                            color: 'var(--color-primary)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontWeight: 700,
-                            fontSize: 12,
-                          }}
-                        >
-                          {recruiter.full_name
-                            .split(' ')
-                            .map(n => n[0])
-                            .join('')
-                            .toUpperCase()}
-                        </span>
-                        <div>
-                          <div className="font-semibold" style={{ fontSize: 14 }}>
-                            {recruiter.full_name}
-                          </div>
-                          <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
-                            {recruiter.company || '—'}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td style={{ color: 'var(--color-text-secondary)' }}>{recruiter.email}</td>
-                    <td style={{ color: 'var(--color-text-secondary)' }}>{recruiter.phone || '—'}</td>
-                    <td style={{ color: 'var(--color-text-secondary)' }}>{recruiter.company || '—'}</td>
-                    <td>
-                      <span className={statusClass(recruiter.status)}>{statusLabel(recruiter.status)}</span>
-                    </td>
-                    <td style={{ color: 'var(--color-text-secondary)' }}>{formatDate(recruiter.invited_at)}</td>
-                    <td style={{ color: 'var(--color-text-secondary)' }}>{formatDate(recruiter.accepted_at)}</td>
-                    <td style={{ textAlign: 'right' }}>
-                      <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                        <button
-                          className="btn btn-primary btn-sm"
-                          onClick={() => setSelectedRecruiter(recruiter)}
-                          title="View recruiter"
-                        >
-                          <Eye size={16} /> View
-                        </button>
-                        {recruiter.status === 'invited' && (
-                          <button
-                            className="btn btn-secondary btn-sm"
-                            onClick={() => handleResendInvite(recruiter.id)}
-                            title="Resend invitation"
-                          >
-                            <RefreshCw size={16} />
-                          </button>
-                        )}
-                        <button
-                          className="btn btn-secondary btn-sm"
-                          onClick={() => handleOpenForm(recruiter)}
-                          title="Edit recruiter"
-                        >
-                          <Edit2 size={16} />
-                        </button>
-                        <button
-                          className={`btn btn-sm ${recruiter.status === 'inactive' ? 'btn-secondary' : 'btn-danger'}`}
-                          onClick={() => openStatusConfirm(recruiter)}
-                          title={recruiter.status === 'inactive' ? 'Activate recruiter' : 'Deactivate recruiter'}
-                          style={recruiter.status === 'inactive' ? { color: 'var(--color-success)', borderColor: 'var(--color-success)' } : undefined}
-                        >
-                          {recruiter.status === 'inactive' ? <UserCheck size={14} /> : <UserX size={14} />}
-                          {recruiter.status === 'inactive' ? 'Activate' : 'Disable'}
-                        </button>
-                        <button
-                          className="btn btn-sm btn-danger"
-                          onClick={() => handleDeleteRecruiter(recruiter)}
-                          title="Delete recruiter"
-                        >
-                          <Trash2 size={14} /> Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {selectedRecruiter && (
-        <div
-          style={{
-            position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.35)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            zIndex: 30,
-          }}
-          onClick={() => setSelectedRecruiter(null)}
-        >
-          <div
-            className="card"
-            style={{ width: '520px', maxWidth: '90%', boxShadow: 'var(--shadow-lg)', position: 'relative' }}
-            onClick={e => e.stopPropagation()}
-          >
-            <h3 style={{ marginTop: 0, marginBottom: 12 }}>Recruiter Details</h3>
-            <div style={{ display: 'grid', gap: 12, fontSize: 14 }}>
-              <div><strong>Name:</strong> {selectedRecruiter.full_name}</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Mail size={16} /> {selectedRecruiter.email}
-              </div>
-              {selectedRecruiter.phone && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Phone size={16} /> {selectedRecruiter.phone}
-                </div>
-              )}
-              {selectedRecruiter.company && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Building2 size={16} /> {selectedRecruiter.company}
-                </div>
-              )}
-              <div>
-                <strong>Status:</strong> <span className={statusClass(selectedRecruiter.status)}>{statusLabel(selectedRecruiter.status)}</span>
-              </div>
-              <div><strong>Invited:</strong> {formatDate(selectedRecruiter.invited_at)}</div>
-              <div><strong>Accepted:</strong> {formatDate(selectedRecruiter.accepted_at)}</div>
-              {selectedRecruiter.domain_ids.length > 0 && (
-                <div>
-                  <strong>Domains:</strong>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
-                    {selectedRecruiter.domain_ids.map(domainId => {
-                      const domain = domains.find(d => d.id === domainId)
-                      return (
-                        <span key={domainId} className="badge info">{domain?.name || domainId}</span>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="btn-group" style={{ marginTop: 20, justifyContent: 'flex-end' }}>
-              <button className="btn btn-secondary" onClick={() => setSelectedRecruiter(null)}>
-                Close
-              </button>
-              <button
-                className={`btn ${selectedRecruiter.status === 'inactive' ? 'btn-secondary' : 'btn-danger'}`}
-                onClick={() => openStatusConfirm(selectedRecruiter)}
-                style={selectedRecruiter.status === 'inactive' ? { color: 'var(--color-success)', borderColor: 'var(--color-success)' } : undefined}
-              >
-                {selectedRecruiter.status === 'inactive' ? 'Activate' : 'Deactivate'}
-              </button>
-              <button
-                className="btn btn-danger"
-                onClick={() => {
-                  setSelectedRecruiter(null)
-                  handleDeleteRecruiter(selectedRecruiter)
-                }}
-              >
-                <Trash2 size={14} /> Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {confirmRecruiter && confirmAction && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(15,23,42,0.48)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 60,
-          }}
-          onClick={closeStatusConfirm}
-        >
-          <div
-            className="card"
-            style={{ width: '460px', maxWidth: '92%', boxShadow: 'var(--shadow-lg)' }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 style={{ marginTop: 0, marginBottom: 10 }}>
-              {confirmAction === 'activate' ? 'Activate Recruiter' : 'Deactivate Recruiter'}
-            </h3>
-            <p className="text-muted" style={{ marginBottom: 18 }}>
-              {confirmAction === 'activate'
-                ? `Are you sure you want to activate ${confirmRecruiter.full_name}?`
-                : `Are you sure you want to deactivate ${confirmRecruiter.full_name}?`}
-            </p>
-            <div className="btn-group" style={{ justifyContent: 'flex-end' }}>
-              <button className="btn btn-secondary" onClick={closeStatusConfirm} disabled={confirmLoading}>
-                Cancel
-              </button>
-              <button
-                className={`btn ${confirmAction === 'activate' ? 'btn-secondary' : 'btn-danger'}`}
-                style={confirmAction === 'activate' ? { color: 'var(--color-success)', borderColor: 'var(--color-success)' } : undefined}
-                onClick={handleConfirmStatusAction}
-                disabled={confirmLoading}
-              >
-                {confirmLoading
-                  ? 'Processing...'
-                  : confirmAction === 'activate'
-                    ? 'Yes, Activate'
-                    : 'Yes, Deactivate'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {deleteConfirmRecruiter && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(15,23,42,0.48)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 60,
-          }}
-          onClick={closeDeleteConfirmModal}
-        >
-          <div
-            className="card"
-            style={{ width: '460px', maxWidth: '92%', boxShadow: 'var(--shadow-lg)' }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 style={{ marginTop: 0, marginBottom: 10 }}>
-              Delete Recruiter
-            </h3>
-            <p className="text-muted" style={{ marginBottom: 18 }}>
-              Are you sure you want to permanently delete <strong>{deleteConfirmRecruiter.full_name}</strong> and their associated user account? This action cannot be undone.
-            </p>
-            <div className="btn-group" style={{ justifyContent: 'flex-end' }}>
-              <button className="btn btn-secondary" onClick={closeDeleteConfirmModal} disabled={deleteConfirmLoading}>
-                Cancel
-              </button>
-              <button
-                className="btn btn-danger"
-                onClick={handleConfirmDelete}
-                disabled={deleteConfirmLoading}
-              >
-                {deleteConfirmLoading ? 'Deleting...' : 'Yes, Delete'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+      {/* Status Confirm */}
+      <Dialog open={!!statusTarget} onClose={() => setStatusTarget(null)} maxWidth="xs" fullWidth slotProps={{ paper: { sx: { bgcolor: 'background.paper' } } }}>
+        <DialogTitle>{statusTarget?.action === 'activate' ? 'Activate' : 'Deactivate'} Recruiter</DialogTitle>
+        <DialogContent><Typography variant="body2" color="text.secondary">Are you sure you want to {statusTarget?.action} <strong>{statusTarget?.r.full_name}</strong>?</Typography></DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button variant="outlined" onClick={() => setStatusTarget(null)} disabled={actionLoading}>Cancel</Button>
+          <Button variant="contained" color={statusTarget?.action === 'activate' ? 'success' : 'warning'} onClick={handleStatusAction} disabled={actionLoading}>{actionLoading ? 'Processing…' : 'Confirm'}</Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   )
 }

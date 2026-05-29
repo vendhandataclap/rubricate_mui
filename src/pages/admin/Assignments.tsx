@@ -1,340 +1,652 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Eye, Clock, CheckCircle, AlertTriangle, TrendingUp, Check, Mail } from 'lucide-react'
-import { adminApi, recruiterApi } from '../../services/api'
-import type { Assessment, Domain } from '../../types'
+import {
+  Box,
+  Button,
+  Card,
+  Chip,
+  CircularProgress,
+  FormControl,
+  IconButton,
+  InputLabel,
+  MenuItem,
+  Select,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Tooltip,
+  Typography,
+  Alert,
+  Avatar,
+} from '@mui/material'
 
-type StatusFilter = 'all' | 'assigned' | 'in_progress' | 'submitted' | 'graded' | 'reviewed'
-type RecommendationFilter = 'all' | 'pass' | 'review' | 'fail'
+import { Eye, Mail, Check, RefreshCw } from 'lucide-react'
+import { adminApi, recruiterApi } from '../../services/api'
+import type { Assessment } from '../../types'
+
+type StatusFilter =
+  | 'all'
+  | 'assigned'
+  | 'in_progress'
+  | 'submitted'
+  | 'graded'
+  | 'reviewed'
+
+type RecFilter = 'all' | 'pass' | 'review' | 'fail'
+
+const STATUS_STYLES: Record<string, any> = {
+  assigned: {
+    bgcolor: '#1a1a1a',
+    color: '#facc15',
+    border: '1px solid #3a3a3a',
+  },
+  in_progress: {
+    bgcolor: '#1a1a1a',
+    color: '#38bdf8',
+    border: '1px solid #3a3a3a',
+  },
+  submitted: {
+    bgcolor: '#1a1a1a',
+    color: '#a78bfa',
+    border: '1px solid #3a3a3a',
+  },
+  graded: {
+    bgcolor: '#1a1a1a',
+    color: '#fb7185',
+    border: '1px solid #3a3a3a',
+  },
+  reviewed: {
+    bgcolor: '#1a1a1a',
+    color: '#4ade80',
+    border: '1px solid #3a3a3a',
+  },
+}
+
+const REC_STYLES: Record<string, any> = {
+  pass: {
+    bgcolor: '#102014',
+    color: '#4ade80',
+    border: '1px solid #1f3a28',
+  },
+  fail: {
+    bgcolor: '#2a1111',
+    color: '#fb7185',
+    border: '1px solid #4a1d1d',
+  },
+  review: {
+    bgcolor: '#2a2412',
+    color: '#facc15',
+    border: '1px solid #4a3f1d',
+  },
+}
 
 export default function Assignments() {
   const navigate = useNavigate()
-  
+
   const [assessments, setAssessments] = useState<Assessment[]>([])
   const [domains, setDomains] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
-  const [recommendationFilter, setRecommendationFilter] = useState<RecommendationFilter>('all')
-  const [domainFilter, setDomainFilter] = useState<string>('all')
-  const [sendingEmailId, setSendingEmailId] = useState<string | null>(null)
-  const [sentEmailId, setSentEmailId] = useState<string | null>(null)
+  const [statusFilter, setStatusFilter] =
+    useState<StatusFilter>('all')
 
-  const handleSendTestLink = async (id: string) => {
-    setSendingEmailId(id)
+  const [recFilter, setRecFilter] =
+    useState<RecFilter>('all')
+
+  const [domainFilter, setDomainFilter] = useState('all')
+
+  const [sendingId, setSendingId] = useState<string | null>(null)
+  const [sentId, setSentId] = useState<string | null>(null)
+
+  const load = async () => {
+    setLoading(true)
+    setError(null)
+
     try {
-      await recruiterApi.sendTestLink(id)
-      setSentEmailId(id)
-      setTimeout(() => setSentEmailId(current => (current === id ? null : current)), 3000)
-    } catch {
-      // Keep behavior non-blocking in list view; button resets on failure.
+      const [{ domains: ds }, { assessments: as }] =
+        await Promise.all([
+          adminApi.getDomains(),
+          adminApi.getAssignments({ limit: 500 }),
+        ])
+
+      setDomains(
+        ds.reduce(
+          (acc, d) => ({ ...acc, [d.id]: d.name }),
+          {} as Record<string, string>
+        )
+      )
+
+      setAssessments(as)
+    } catch (err: any) {
+      setError(err.message || 'Failed to load')
     } finally {
-      setSendingEmailId(null)
+      setLoading(false)
     }
   }
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true)
-        setError(null)
-
-        // Load domains
-        const { domains: domainsData } = await adminApi.getDomains()
-        const domainMap = domainsData.reduce((acc, d) => {
-          acc[d.id] = d.name
-          return acc
-        }, {} as Record<string, string>)
-        setDomains(domainMap)
-
-        // Load assessments
-        const { assessments: assessmentsData } = await adminApi.getAssignments({
-          limit: 500,
-        })
-        setAssessments(assessmentsData)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load assessments')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadData()
+    load()
   }, [])
 
-  const getStatusColor = (status: string) => {
-    const colors: Record<string, { bg: string; text: string; icon: typeof Clock }> = {
-      assigned: { bg: 'var(--color-warning-light)', text: 'var(--color-warning-dark)', icon: Clock },
-      in_progress: { bg: 'var(--color-info-light)', text: 'var(--color-info)', icon: TrendingUp },
-      submitted: { bg: 'var(--color-primary-light)', text: 'var(--color-primary-dark)', icon: AlertTriangle },
-      graded: { bg: 'var(--color-danger-light)', text: 'var(--color-danger)', icon: AlertTriangle },
-      reviewed: { bg: 'var(--color-success-light)', text: 'var(--color-success-hover)', icon: CheckCircle },
-    }
-    return colors[status] || { bg: 'var(--color-bg)', text: 'var(--color-text)', icon: Clock }
+  const handleSendLink = async (id: string) => {
+    setSendingId(id)
+
+    try {
+      await recruiterApi.sendTestLink(id)
+
+      setSentId(id)
+
+      setTimeout(() => {
+        setSentId((c) => (c === id ? null : c))
+      }, 3000)
+    } catch {}
+
+    setSendingId(null)
   }
 
-  const getRecommendationColor = (rec: string | null) => {
-    if (!rec) return { bg: 'var(--color-bg)', text: 'var(--color-text-muted)', label: '-' }
-    const colors: Record<string, { bg: string; text: string; label: string }> = {
-      pass: { bg: 'var(--color-success-light)', text: 'var(--color-success-hover)', label: '✓ Pass' },
-      fail: { bg: 'var(--color-danger-light)', text: 'var(--color-danger)', label: '✗ Fail' },
-      review: { bg: 'var(--color-warning-light)', text: 'var(--color-warning-dark)', label: '⚠ Review' },
-    }
-    return colors[rec] || { bg: 'var(--color-bg)', text: 'var(--color-text-muted)', label: rec }
-  }
+  const filtered = assessments.filter((a) => {
+    if (statusFilter !== 'all' && a.status !== statusFilter)
+      return false
 
-  const filteredAssessments = assessments.filter(a => {
-    if (statusFilter !== 'all' && a.status !== statusFilter) return false
-    if (recommendationFilter !== 'all' && a.ai_recommendation !== recommendationFilter) return false
-    if (domainFilter !== 'all' && a.domain_id !== domainFilter) return false
+    if (
+      recFilter !== 'all' &&
+      a.ai_recommendation !== recFilter
+    )
+      return false
+
+    if (
+      domainFilter !== 'all' &&
+      a.domain_id !== domainFilter
+    )
+      return false
+
     return true
   })
 
-  if (loading) {
-    return (
-      <div>
-        <div className="page-header">
-          <h1>Assessments</h1>
-          <p>Manage and review expert assessments</p>
-        </div>
-        <div className="card" style={{ textAlign: 'center', padding: '40px 20px' }}>
-          <p className="text-muted">Loading assessments...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div>
-        <div className="page-header">
-          <h1>Assessments</h1>
-          <p>Manage and review expert assessments</p>
-        </div>
-        <div className="card" style={{ textAlign: 'center', padding: '40px 20px', background: 'var(--color-danger-light)' }}>
-          <p style={{ color: 'var(--color-danger)' }}>Error: {error}</p>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div>
-      {/* <div className="page-header">
-        <h1>Assessments</h1>
-        <p>Manage and review expert assessments</p>
-      </div> */}
+    <Box sx={{ p: 3, background: '#000', minHeight: '100vh' }}>
+      {/* HEADER */}
 
-      <div className="card">
-        <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-          <h3 style={{ marginTop: 0, marginBottom: 0 }}>Assessments</h3>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-            <span className="text-muted" style={{ fontSize: '14px' }}>
-              Showing {filteredAssessments.length} assessments
-            </span>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-              style={{
-                padding: '8px 10px',
-                borderRadius: '6px',
-                border: '1px solid var(--color-border)',
-                background: 'var(--color-bg)',
-                color: 'var(--color-text)',
-                fontSize: '13px',
-                cursor: 'pointer',
+      <Box
+        sx={{
+          mb: 3,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
+        <Box>
+          <Typography
+            sx={{
+              fontSize: 28,
+              fontWeight: 700,
+              color: '#fff',
+            }}
+          >
+            Assessments
+          </Typography>
+
+          <Typography
+            sx={{
+              fontSize: 13,
+              color: '#777',
+              mt: 0.5,
+            }}
+          >
+            Manage and review expert assessments
+          </Typography>
+        </Box>
+
+        <Tooltip title="Refresh">
+          <IconButton
+            onClick={load}
+            sx={{
+              border: '1px solid #222',
+              color: '#aaa',
+              background: '#0a0a0a',
+
+              '&:hover': {
+                background: '#111',
+              },
+            }}
+          >
+            {loading ? (
+              <CircularProgress size={16} />
+            ) : (
+              <RefreshCw size={16} />
+            )}
+          </IconButton>
+        </Tooltip>
+      </Box>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+
+      {/* MAIN CARD */}
+
+      <Card
+        sx={{
+          background: '#050505',
+          border: '1px solid #1a1a1a',
+          borderRadius: 4,
+          overflow: 'hidden',
+          boxShadow: 'none',
+        }}
+      >
+        {/* FILTERS */}
+
+        <Box
+          sx={{
+            p: 2,
+            display: 'flex',
+            gap: 2,
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            borderBottom: '1px solid #1a1a1a',
+          }}
+        >
+          {[{
+            label: 'Status',
+            value: statusFilter,
+            set: setStatusFilter,
+            items: [
+              'all',
+              'assigned',
+              'in_progress',
+              'submitted',
+              'graded',
+              'reviewed',
+            ],
+          },
+          {
+            label: 'Recommendation',
+            value: recFilter,
+            set: setRecFilter,
+            items: ['all', 'pass', 'fail', 'review'],
+          }].map((f) => (
+            <FormControl
+              key={f.label}
+              size="small"
+              sx={{
+                minWidth: 150,
+
+                '& .MuiOutlinedInput-root': {
+                  background: '#0b0b0b',
+                  color: '#fff',
+                  fontSize: 13,
+                  borderRadius: 2,
+
+                  '& fieldset': {
+                    borderColor: '#222',
+                  },
+
+                  '&:hover fieldset': {
+                    borderColor: '#333',
+                  },
+
+                  '&.Mui-focused fieldset': {
+                    borderColor: '#444',
+                  },
+                },
+
+                '& .MuiInputLabel-root': {
+                  color: '#666',
+                  fontSize: 13,
+                },
+
+                '& .MuiSvgIcon-root': {
+                  color: '#888',
+                },
               }}
             >
-              <option value="all">All Status</option>
-              <option value="assigned">Assigned</option>
-              <option value="in_progress">In Progress</option>
-              <option value="submitted">Submitted</option>
-              <option value="graded">Graded</option>
-              <option value="reviewed">Reviewed</option>
-            </select>
+              <InputLabel>{f.label}</InputLabel>
 
-            <select
-              value={recommendationFilter}
-              onChange={(e) => setRecommendationFilter(e.target.value as RecommendationFilter)}
-              style={{
-                padding: '8px 10px',
-                borderRadius: '6px',
-                border: '1px solid var(--color-border)',
-                background: 'var(--color-bg)',
-                color: 'var(--color-text)',
-                fontSize: '13px',
-                cursor: 'pointer',
-              }}
-            >
-              <option value="all">All Recommendations</option>
-              <option value="pass">Pass</option>
-              <option value="fail">Fail</option>
-              <option value="review">Review</option>
-            </select>
+              <Select
+                value={f.value}
+                label={f.label}
+                onChange={(e) =>
+                  f.set(e.target.value as any)
+                }
+              >
+                {f.items.map((x) => (
+                  <MenuItem key={x} value={x}>
+                    {x.replace('_', ' ')}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          ))}
 
-            <select
-              value={domainFilter}
-              onChange={(e) => setDomainFilter(e.target.value)}
-              style={{
-                padding: '8px 10px',
-                borderRadius: '6px',
-                border: '1px solid var(--color-border)',
-                background: 'var(--color-bg)',
-                color: 'var(--color-text)',
-                fontSize: '13px',
-                cursor: 'pointer',
-              }}
-            >
-              <option value="all">All Domains</option>
-              {Object.entries(domains).map(([id, name]) => (
-                <option key={id} value={id}>{name}</option>
-              ))}
-            </select>
-            </div>
-          </div>
-        </div>
+          <Typography
+            sx={{
+              ml: 'auto',
+              fontSize: 12,
+              color: '#777',
+            }}
+          >
+            {filtered.length} assessments
+          </Typography>
+        </Box>
 
-        {filteredAssessments.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-            <AlertTriangle size={40} style={{ opacity: 0.3, marginBottom: '16px' }} />
-            <p className="text-muted">No assignments found</p>
-          </div>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{
-              width: '100%',
-              borderCollapse: 'collapse',
-              fontSize: '14px',
-            }}>
-              <thead>
-                <tr style={{ borderBottom: '2px solid var(--color-border)', backgroundColor: 'var(--color-surface)' }}>
-                  <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--color-text-muted)', fontSize: '12px' }}>Expert</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--color-text-muted)', fontSize: '12px' }}>Domain</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--color-text-muted)', fontSize: '12px' }}>Status</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--color-text-muted)', fontSize: '12px' }}>Score</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--color-text-muted)', fontSize: '12px' }}>Recommendation</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--color-text-muted)', fontSize: '12px' }}>Assigned</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: 600, color: 'var(--color-text-muted)', fontSize: '12px' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredAssessments.map((assessment, idx) => {
-                  const statusMeta = getStatusColor(assessment.status)
-                  const recMeta = getRecommendationColor(assessment.ai_recommendation)
-                  const assignedDate = assessment.assigned_at 
-                    ? new Date(assessment.assigned_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })
-                    : 'Invalid Date'
+        {/* TABLE */}
 
-                  return (
-                    <tr
-                    
-                      key={assessment.id}
-                      style={{
-                        borderBottom: '1px solid var(--color-border)',
-                        backgroundColor: idx % 2 === 0 ? 'transparent' : 'rgba(255, 255, 255, 0.02)',
-                        transition: 'background-color 0.15s',
+        <TableContainer>
+          <Table size="small">
+            <TableHead>
+              <TableRow
+                sx={{
+                  background: '#090909',
+                }}
+              >
+                {[
+                  'Expert',
+                  'Domain',
+                  'Status',
+                  'Score',
+                  'Recommendation',
+                  'Assigned',
+                  'Actions',
+                ].map((head) => (
+                  <TableCell
+                    key={head}
+                    sx={{
+                      color: '#666',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      borderBottom: '1px solid #1a1a1a',
+                    }}
+                    align={
+                      head === 'Actions'
+                        ? 'center'
+                        : 'left'
+                    }
+                  >
+                    {head}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={7}
+                    align="center"
+                    sx={{ py: 6 }}
+                  >
+                    <CircularProgress size={26} />
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filtered.map((a) => (
+                  <TableRow
+                    key={a.id}
+                    sx={{
+                      '&:hover': {
+                        background: '#0a0a0a',
+                      },
+                    }}
+                  >
+                    {/* EXPERT */}
+
+                    <TableCell
+                      sx={{
+                        borderBottom:
+                          '1px solid #111',
                       }}
-                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--color-surface)' }}
-                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = idx % 2 === 0 ? 'transparent' : 'rgba(255, 255, 255, 0.02)' }}
                     >
-                      <td style={{ padding: '12px 16px' }}>
-                        <div style={{ fontWeight: 600 }}>{assessment.expert?.full_name || 'Unknown'}</div>
-                        <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>{assessment.expert?.email || '-'}</div>
-                      </td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <div>{domains[assessment.domain_id] || 'N/A'}</div>
-                      </td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <span style={{
-                          display: 'inline-flex',
+                      <Box
+                        sx={{
+                          display: 'flex',
                           alignItems: 'center',
-                          gap: '6px',
-                          padding: '4px 10px',
-                          borderRadius: '6px',
-                          fontSize: '12px',
-                          fontWeight: 600,
-                          backgroundColor: statusMeta.bg,
-                          color: statusMeta.text,
-                          textTransform: 'capitalize',
-                        }}>
-                          <statusMeta.icon size={14} />
-                          {assessment.status.replace('_', ' ')}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <div style={{ fontWeight: 600 }}>
-                          {assessment.total_score !== null ? `${assessment.total_score} / ${assessment.max_possible_score}` : '-'}
-                        </div>
-                        <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
-                          {assessment.percentage !== null ? `${assessment.percentage}%` : '-'}
-                        </div>
-                      </td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <span style={{
-                          display: 'inline-block',
-                          padding: '4px 10px',
-                          borderRadius: '6px',
-                          fontSize: '12px',
-                          fontWeight: 600,
-                          backgroundColor: recMeta.bg,
-                          color: recMeta.text,
-                        }}>
-                          {recMeta.label}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <div style={{ fontSize: '13px' }}>{assignedDate}</div>
-                      </td>
-                      <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                          <button
-                            className="btn btn-primary btn-sm"
-                            onClick={() => navigate(`/admin/assessments/${assessment.id}`)}
-                            style={{ padding: '6px 10px', fontSize: '12px' }}
+                          gap: 1.5,
+                        }}
+                      >
+                        <Avatar
+                          sx={{
+                            width: 30,
+                            height: 30,
+                            bgcolor: '#111827',
+                            color: '#60a5fa',
+                            fontSize: 11,
+                            fontWeight: 700,
+                          }}
+                        >
+                          {(a.expert?.full_name || '?')
+                            .charAt(0)
+                            .toUpperCase()}
+                        </Avatar>
+
+                        <Box>
+                          <Typography
+                            sx={{
+                              fontSize: 13,
+                              fontWeight: 600,
+                              color: '#fff',
+                            }}
                           >
-                            <Eye size={13} /> View
-                          </button>
-                          {(assessment.status === 'assigned' || assessment.status === 'in_progress') && (
-                            <button
-                              onClick={() => handleSendTestLink(assessment.id)}
-                              title="Email test link to candidate"
-                              disabled={sendingEmailId === assessment.id}
-                              style={{
-                                background: sentEmailId === assessment.id ? 'var(--color-success)' : 'var(--color-primary)',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                padding: '6px 10px',
-                                cursor: sendingEmailId === assessment.id ? 'default' : 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                fontSize: '12px',
-                                fontWeight: 500,
-                                transition: 'all 0.15s',
-                                opacity: sendingEmailId === assessment.id ? 0.7 : 1,
-                              }}
-                            >
-                              {sentEmailId === assessment.id
-                                ? <><Check size={13} /> Sent</>
-                                : sendingEmailId === assessment.id
-                                  ? <><Mail size={13} /> Sending...</>
-                                  : <><Mail size={13} /> Email</>
-                              }
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </div>
+                            {a.expert?.full_name}
+                          </Typography>
+
+                          <Typography
+                            sx={{
+                              fontSize: 11,
+                              color: '#666',
+                            }}
+                          >
+                            {a.expert?.email}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </TableCell>
+
+                    {/* DOMAIN */}
+
+                    <TableCell
+                      sx={{
+                        color: '#ccc',
+                        fontSize: 12,
+                        borderBottom:
+                          '1px solid #111',
+                      }}
+                    >
+                      {domains[a.domain_id] || '—'}
+                    </TableCell>
+
+                    {/* STATUS */}
+
+                    <TableCell
+                      sx={{
+                        borderBottom:
+                          '1px solid #111',
+                      }}
+                    >
+                      <Chip
+                        label={a.status.replace('_', ' ')}
+                        size="small"
+                        sx={{
+                          ...STATUS_STYLES[a.status],
+                          fontSize: 11,
+                          textTransform: 'capitalize',
+                        }}
+                      />
+                    </TableCell>
+
+                    {/* SCORE */}
+
+                    <TableCell
+                      sx={{
+                        borderBottom:
+                          '1px solid #111',
+                      }}
+                    >
+                      <Typography
+                        sx={{
+                          fontSize: 12,
+                          fontWeight: 600,
+                          color: '#fff',
+                        }}
+                      >
+                        {a.total_score !== null
+                          ? `${a.total_score}/${a.max_possible_score}`
+                          : '—'}
+                      </Typography>
+                    </TableCell>
+
+                    {/* RECOMMEND */}
+
+                    <TableCell
+                      sx={{
+                        borderBottom:
+                          '1px solid #111',
+                      }}
+                    >
+                      {a.ai_recommendation ? (
+                        <Chip
+                          label={a.ai_recommendation}
+                          size="small"
+                          sx={{
+                            ...REC_STYLES[
+                              a.ai_recommendation
+                            ],
+                            fontSize: 11,
+                          }}
+                        />
+                      ) : (
+                        <Typography
+                          sx={{
+                            color: '#555',
+                            fontSize: 11,
+                          }}
+                        >
+                          —
+                        </Typography>
+                      )}
+                    </TableCell>
+
+                    {/* DATE */}
+
+                    <TableCell
+                      sx={{
+                        color: '#888',
+                        fontSize: 12,
+                        borderBottom:
+                          '1px solid #111',
+                      }}
+                    >
+                      {a.assigned_at
+                        ? new Date(
+                            a.assigned_at
+                          ).toLocaleDateString(
+                            'en-US',
+                            {
+                              month: 'short',
+                              day: 'numeric',
+                              year: '2-digit',
+                            }
+                          )
+                        : '—'}
+                    </TableCell>
+
+                    {/* ACTIONS */}
+
+                    <TableCell
+                      align="center"
+                      sx={{
+                        borderBottom:
+                          '1px solid #111',
+                      }}
+                    >
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        justifyContent="center"
+                      >
+                        <Button
+                          size="small"
+                          startIcon={<Eye size={13} />}
+                          onClick={() =>
+                            navigate(
+                              `/admin/assessments/${a.id}`
+                            )
+                          }
+                          sx={{
+                            background: '#111827',
+                            color: '#60a5fa',
+                            border:
+                              '1px solid #1e293b',
+                            textTransform: 'none',
+                            fontSize: 11,
+                            px: 1.5,
+
+                            '&:hover': {
+                              background: '#172033',
+                            },
+                          }}
+                        >
+                          View
+                        </Button>
+
+                        {(a.status === 'assigned' ||
+                          a.status ===
+                            'in_progress') && (
+                          <Button
+                            size="small"
+                            startIcon={
+                              sentId === a.id ? (
+                                <Check size={13} />
+                              ) : (
+                                <Mail size={13} />
+                              )
+                            }
+                            disabled={
+                              sendingId === a.id
+                            }
+                            onClick={() =>
+                              handleSendLink(a.id)
+                            }
+                            sx={{
+                              background: '#101010',
+                              color:
+                                sentId === a.id
+                                  ? '#4ade80'
+                                  : '#aaa',
+                              border:
+                                '1px solid #222',
+                              textTransform:
+                                'none',
+                              fontSize: 11,
+                              px: 1.5,
+
+                              '&:hover': {
+                                background:
+                                  '#181818',
+                              },
+                            }}
+                          >
+                            {sentId === a.id
+                              ? 'Sent'
+                              : 'Email'}
+                          </Button>
+                        )}
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Card>
+    </Box>
   )
 }

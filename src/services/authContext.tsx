@@ -1,9 +1,3 @@
-/**
- * Auth context for the Rubricate platform.
- *
- * Stores user/token in localStorage and exposes
- * login(), logout(), and current-user state to the entire app.
- */
 import {
   createContext,
   useContext,
@@ -12,9 +6,7 @@ import {
   useCallback,
   type ReactNode,
 } from 'react'
-import { API_BASE_URL } from './env'
-
-// ---------- Types ----------
+import { DIRECTUS_URL } from './env'
 
 export type UserRole = 'admin' | 'recruiter' | 'expert'
 
@@ -38,8 +30,6 @@ interface AuthContextValue extends AuthState {
   logout: () => void
 }
 
-// ---------- Storage helpers ----------
-
 const STORAGE_KEY = 'rubricate_auth'
 
 function loadFromStorage(): { user: AuthUser; token: string } | null {
@@ -60,8 +50,6 @@ function clearStorage() {
   localStorage.removeItem(STORAGE_KEY)
 }
 
-// ---------- Context ----------
-
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -72,50 +60,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isLoading: true,
   })
 
-  // Hydrate from localStorage on mount
   useEffect(() => {
     const stored = loadFromStorage()
     if (stored) {
-      setState({
-        user: stored.user,
-        token: stored.token,
-        isAuthenticated: true,
-        isLoading: false,
-      })
+      setState({ user: stored.user, token: stored.token, isAuthenticated: true, isLoading: false })
     } else {
       setState(s => ({ ...s, isLoading: false }))
     }
   }, [])
 
-  const login = useCallback(
-    async (email: string, password: string, role: UserRole) => {
-      const res = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, role }),
-      })
-      const body = await res.json()
-      if (!res.ok || !body.success) {
-        throw new Error(body.message || 'Login failed')
-      }
-      const { user, accessToken } = body.data
-      const authUser: AuthUser = {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName ?? '',
-        lastName: user.lastName ?? '',
-        role: user.role as UserRole,
-      }
-      saveToStorage(authUser, accessToken)
-      setState({
-        user: authUser,
-        token: accessToken,
-        isAuthenticated: true,
-        isLoading: false,
-      })
-    },
-    [],
-  )
+  const login = useCallback(async (email: string, password: string, _role: UserRole) => {
+    // Step 1: authenticate against Directus
+    const res = await fetch(`${DIRECTUS_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    })
+    const body = await res.json()
+    if (!res.ok) {
+      const msg = body?.errors?.[0]?.message || 'Login failed'
+      throw new Error(msg)
+    }
+
+    const accessToken: string = body.data.access_token
+
+    // Step 2: fetch user profile
+    const meRes = await fetch(`${DIRECTUS_URL}/users/me?fields=id,email,first_name,last_name,role.name`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+    const meBody = await meRes.json()
+    if (!meRes.ok) throw new Error('Failed to fetch user profile')
+
+    const me = meBody.data
+    const roleName = (typeof me.role === 'object' ? me.role?.name : me.role) || ''
+
+    // Map Directus role name to app role
+    let appRole: UserRole = 'expert'
+    const rn = roleName.toLowerCase()
+    if (rn.includes('admin') || email.toLowerCase() === 'admin@gmail.com') appRole = 'admin'
+    else if (rn.includes('recruit')) appRole = 'recruiter'
+
+    const authUser: AuthUser = {
+      id: me.id,
+      email: me.email,
+      firstName: me.first_name || '',
+      lastName: me.last_name || '',
+      role: appRole,
+    }
+
+    saveToStorage(authUser, accessToken)
+    setState({ user: authUser, token: accessToken, isAuthenticated: true, isLoading: false })
+  }, [])
 
   const logout = useCallback(() => {
     clearStorage()
@@ -123,9 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <AuthContext.Provider
-      value={{ ...state, login, logout }}
-    >
+    <AuthContext.Provider value={{ ...state, login, logout }}>
       {children}
     </AuthContext.Provider>
   )

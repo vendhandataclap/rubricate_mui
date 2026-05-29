@@ -162,7 +162,7 @@ export default function AssignAssessment() {
         domain_id: String(domainId),
         subdomain_id: subdomainId ? String(subdomainId) : undefined,
         difficulty_tier: difficulty,
-        question_type: selectedQuestionType || undefined,
+        question_type_limits: selectedQuestionType ? { [selectedQuestionType]: 10 } : {},
       })
       setQuestions(qs)
       if (qs.length === 0) setQuestionsError('No active questions found for this domain/difficulty.')
@@ -192,7 +192,6 @@ export default function AssignAssessment() {
         difficulty_tier: difficulty,
         question_ids: Array.from(selectedIds),
         expires_days: expiresDays,
-        assessment_mode: assessmentMode,
       })
       setResult(data as any)
     } catch (err) {

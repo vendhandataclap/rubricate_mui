@@ -13,7 +13,14 @@ import type {
 } from '../types'
 import { API_BASE_URL } from './env'
 
-const BASE = API_BASE_URL
+const BASE = API_BASE_URL || '/api'
+
+/** Always returns an array — prevents .map is not a function on bad API responses */
+function toArray<T>(val: unknown): T[] {
+  if (Array.isArray(val)) return val as T[]
+  if (val && typeof val === 'object' && 'data' in val && Array.isArray((val as any).data)) return (val as any).data as T[]
+  return []
+}
 
 // ---------------------------------------------------------------------------
 // Core HTTP helpers
@@ -298,7 +305,8 @@ export function adaptQuestion(q: Record<string, unknown>): Question {
     _subdomain_name:   subdomainName,
   } as Question & { _domain_name?: string; _subdomain_name?: string }
 }
-export function adaptExpert(e: Record<string, unknown>): Expert {
+export function adaptExpert(val: unknown): Expert {
+  const e = val as Record<string, unknown>
   const firstName = (e.first_name ?? '') as string
   const lastName  = (e.last_name ?? '') as string
   const fullName  = (e.name ?? e.full_name ?? `${firstName} ${lastName}`.trim()) as string
@@ -470,7 +478,8 @@ export function adaptGradingReport(record: Record<string, unknown>): GradingRepo
     dimension_scores: toDimensionScores(record.dimension_scores),
   }
 }
-export function adaptAssessmentResponse(r: Record<string, unknown>): AssessmentResponse {
+export function adaptAssessmentResponse(val: unknown): AssessmentResponse {
+  const r = val as Record<string, unknown>
   const qRaw = r.question_id ?? r.question
   return {
     id:             String(r.id ?? ''),
@@ -492,7 +501,8 @@ export function adaptAssessmentResponse(r: Record<string, unknown>): AssessmentR
   }
 }
 
-export function adaptDomain(d: Record<string, unknown>): Domain {
+export function adaptDomain(val: unknown): Domain {
+  const d = val as Record<string, unknown>
   return {
     id:          String(d.id ?? ''),
     name:        (d.name ?? '') as string,
@@ -501,7 +511,8 @@ export function adaptDomain(d: Record<string, unknown>): Domain {
   }
 }
 
-export function adaptSubdomain(s: Record<string, unknown>): Subdomain {
+export function adaptSubdomain(val: unknown): Subdomain {
+  const s = val as Record<string, unknown>
   return {
     id:          String(s.id ?? ''),
     domain_id:   rid(s.domain_id as any),
@@ -746,13 +757,13 @@ export const adminApi = {
 
   getDomains: (): Promise<{ domains: Domain[]; subdomains: Subdomain[] }> =>
     get<any>('/admin/domains').then(raw => ({
-      domains:    (raw.domains    ?? []).map(adaptDomain),
-      subdomains: (raw.subdomains ?? []).map(adaptSubdomain),
+      domains:    toArray(raw?.domains    ?? []).map((d: any) => adaptDomain(d)),
+      subdomains: toArray(raw?.subdomains ?? []).map((s: any) => adaptSubdomain(s)),
     })),
 
   getQuestions: (params: QuestionsParams = {}): Promise<QuestionsResult> =>
     get<any>('/admin/questions', params as Record<string, string | number>).then(raw => {
-      const items: any[] = Array.isArray(raw) ? raw : (raw?.data ?? raw ?? [])
+      const items: any[] = toArray(Array.isArray(raw) ? raw : (raw?.data ?? raw ?? []))
       const questions    = items.map(adaptQuestion) as Array<Question & { _domain_name?: string; _subdomain_name?: string }>
       const total        = (raw?.meta?.filter_count ?? raw?.meta?.total_count ?? items.length) as number
       const domainNames: Record<string, string> = {}
@@ -823,14 +834,12 @@ export const adminApi = {
 
   getSubdomains: (domain_id?: string): Promise<Subdomain[]> =>
     get<any[]>('/admin/subdomains', domain_id ? { domain_id } : undefined).then(list => {
-      const rows = Array.isArray(list) ? list : []
-      return rows.map(adaptSubdomain)
+      return toArray(list).map((s: any) => adaptSubdomain(s))
     }),
 
   getRecruiters: (company_id?: string): Promise<Recruiter[]> =>
     get<any[]>('/recruiters', company_id ? { company_id } : undefined).then(list => {
-      const rows = Array.isArray(list) ? list : []
-      return rows.map(adaptRecruiter)
+      return toArray(list).map((r: any) => adaptRecruiter(r))
     }),
 
   createJob: (data: Partial<Job>): Promise<Job> =>
@@ -841,24 +850,18 @@ export const adminApi = {
 
   getJobs: (params: { limit?: number; offset?: number } = {}): Promise<JobsResult> =>
     get<any>('/admin/jobs', params as Record<string, string | number>).then(raw => {
-      const data = (raw && typeof raw === 'object' && 'items' in raw)
-        ? raw
-        : (raw?.data && typeof raw.data === 'object' ? raw.data : raw)
-      const itemsRaw: any[] = Array.isArray((data as any)?.items)
-        ? (data as any).items
-        : Array.isArray(data)
-          ? (data as any)
-          : []
+      const data = (raw && typeof raw === 'object' && 'items' in raw) ? raw : (raw?.data ?? raw)
+      const itemsRaw: any[] = toArray((data as any)?.items ?? data)
       return {
         items: itemsRaw.map(adaptJob),
-        total: Number((data as any)?.total ?? raw?.meta?.filter_count ?? raw?.meta?.total_count ?? itemsRaw.length ?? 0),
+        total: Number((data as any)?.total ?? raw?.meta?.filter_count ?? itemsRaw.length ?? 0),
         limit: Number((data as any)?.limit ?? params.limit ?? 50),
         offset: Number((data as any)?.offset ?? params.offset ?? 0),
       }
     }),
   getCompanyUsers: (params: CompanyUsersParams = {}): Promise<CompanyUsersResult> =>
     authGet<any>('/admin/company-users', params as Record<string, string | number>).then(raw => {
-      const itemsRaw: any[] = Array.isArray(raw?.items) ? raw.items : []
+      const itemsRaw: any[] = toArray(raw?.items ?? raw)
       return {
         items: itemsRaw.map(adaptCompanyUser),
         total: Number(raw?.total ?? itemsRaw.length ?? 0),
@@ -896,12 +899,12 @@ export const adminApi = {
 
   getExperts: (): Promise<{ experts: Expert[] }> =>
     get<any>('/admin/experts').then(raw => ({
-      experts: (Array.isArray(raw.users) ? raw.users : []).map(adaptExpert),
+      experts: toArray(raw?.users ?? raw).map((e: any) => adaptExpert(e)),
     })),
 
   getCompletedTasks: (params: { limit?: number; offset?: number } = {}): Promise<CompletedTasksResult> =>
     get<any>('/admin/completed-tasks', params as Record<string, string | number>).then(raw => {
-      const itemsRaw: any[] = Array.isArray(raw?.items) ? raw.items : []
+      const itemsRaw: any[] = toArray(raw?.items ?? raw)
       return {
         items: itemsRaw as CompletedTask[],
         total: Number(raw?.total ?? itemsRaw.length ?? 0),
@@ -934,10 +937,10 @@ export const adminApi = {
 
   getAssignments: (params: any = {}): Promise<AssessmentsResult> =>
     get<any>('/recruiter/assessments', params as Record<string, string | number>).then(raw => {
-      const items: any[] = Array.isArray(raw) ? raw : (raw?.data ?? raw ?? [])
+      const items: any[] = toArray(Array.isArray(raw) ? raw : (raw?.data ?? raw))
       return {
         assessments: items.map(adaptAssessment),
-        total:       (raw?.meta?.filter_count ?? raw?.meta?.total_count ?? items.length) as number,
+        total: (raw?.meta?.filter_count ?? raw?.meta?.total_count ?? items.length) as number,
       }
     }),
   getCurrentUser: (): Promise<{ id: string; email: string; first_name: string; last_name: string; role?: string; role_id?: string; last_access?: string; company?: string; company_id?: string }> =>
@@ -1010,7 +1013,7 @@ export const recruiterApi = {
 
   getExperts: (): Promise<{ experts: Expert[] }> =>
     get<any>('/recruiter/experts').then(raw => ({
-      experts: (Array.isArray(raw.users) ? raw.users : []).map(adaptExpert),
+      experts: toArray(raw?.users ?? raw).map(adaptExpert),
     })),
 
   getApprovedExperts: (): Promise<{ experts: Expert[] }> =>
@@ -1041,21 +1044,19 @@ export const recruiterApi = {
     
   getAssessments: (params: AssessmentsParams = {}): Promise<AssessmentsResult> =>
     get<any>('/recruiter/assessments', params as Record<string, string | number>).then(raw => {
-      const items: any[] = Array.isArray(raw) ? raw : (raw?.data ?? raw ?? [])
+      const items: any[] = toArray(Array.isArray(raw) ? raw : (raw?.data ?? raw))
       return {
         assessments: items.map(adaptAssessment),
-        total:       (raw?.meta?.filter_count ?? raw?.meta?.total_count ?? items.length) as number,
+        total: (raw?.meta?.filter_count ?? raw?.meta?.total_count ?? items.length) as number,
       }
     }),
 
   getAssessmentDetail: (id: string): Promise<{ assessment: Assessment; responses: AssessmentResponse[]; grading: GradingRecord | null; grading_reports: GradingReport[] }> =>
     get<any>(`/recruiter/assessment/${id}`).then(raw => ({
-      assessment: adaptAssessment(raw.assessment),
-      responses:  (raw.responses ?? []).map(adaptAssessmentResponse),
+      assessment: adaptAssessment(raw.assessment ?? {}),
+      responses:  toArray(raw.responses).map((r: any) => adaptAssessmentResponse(r)),
       grading:    raw.grading ? adaptGradingRecord(raw.grading) : null,
-      grading_reports: Array.isArray(raw.grading_reports)
-        ? raw.grading_reports.map((item: any) => adaptGradingReport(item))
-        : [],
+      grading_reports: toArray(raw.grading_reports).map((item: any) => adaptGradingReport(item)),
     })),
 
   submitDecision: (id: string, payload: DecisionPayload) => {

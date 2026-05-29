@@ -125,7 +125,7 @@ export const mockAssessments: Assessment[] = [
     gaps: ['Limited distributed training experience', 'Could improve on streaming ML approaches'],
     recruiter_decision: null, recruiter_id: null, recruiter_notes: null, decided_at: null,
     flag_count: 0, question_count: 2, started_at: '2026-01-11T10:00:00Z', submitted_at: '2026-01-11T10:45:00Z',
-    graded_at: '2026-01-11T10:46:00Z', expires_at: '2026-01-18T08:00:00Z', created_at: '2026-01-11T08:00:00Z',
+    graded_at: '2026-01-11T10:46:00Z', assigned_at: '2026-01-11T08:00:00Z', expires_at: '2026-01-18T08:00:00Z', created_at: '2026-01-11T08:00:00Z',
     expert: { id: 'e1', full_name: 'Sarah Chen', email: 'sarah.chen@example.com', primary_domain_id: 'd1', seniority_level: 'senior', years_experience: 9, onboarding_status: 'assessment_complete', profile_completed_at: '2026-01-10T08:00:00Z', created_at: '2026-01-08T10:00:00Z' },
   },
   {
@@ -136,7 +136,7 @@ export const mockAssessments: Assessment[] = [
     gaps: ['Lacks production experience detail', 'Weak on implementation specifics', 'Data leakage identification was incomplete'],
     recruiter_decision: null, recruiter_id: null, recruiter_notes: null, decided_at: null,
     flag_count: 1, question_count: 2, started_at: '2026-01-13T14:00:00Z', submitted_at: '2026-01-13T14:50:00Z',
-    graded_at: '2026-01-13T14:51:00Z', expires_at: '2026-01-20T09:00:00Z', created_at: '2026-01-13T09:00:00Z',
+    graded_at: '2026-01-13T14:51:00Z', assigned_at: '2026-01-13T09:00:00Z', expires_at: '2026-01-20T09:00:00Z', created_at: '2026-01-13T09:00:00Z',
     expert: { id: 'e2', full_name: 'James Rodriguez', email: 'james.r@example.com', primary_domain_id: 'd1', seniority_level: 'mid', years_experience: 4, onboarding_status: 'assessment_complete', profile_completed_at: '2026-01-12T09:00:00Z', created_at: '2026-01-10T10:00:00Z' },
   },
   {
@@ -147,7 +147,7 @@ export const mockAssessments: Assessment[] = [
     gaps: ['Fundamental gaps in ETL understanding', 'Schema design knowledge insufficient', 'Responses lacked technical depth'],
     recruiter_decision: null, recruiter_id: null, recruiter_notes: null, decided_at: null,
     flag_count: 0, question_count: 2, started_at: '2026-01-15T10:00:00Z', submitted_at: '2026-01-15T10:30:00Z',
-    graded_at: '2026-01-15T10:31:00Z', expires_at: '2026-01-22T14:00:00Z', created_at: '2026-01-15T14:00:00Z',
+    graded_at: '2026-01-15T10:31:00Z', assigned_at: '2026-01-15T09:00:00Z', expires_at: '2026-01-22T14:00:00Z', created_at: '2026-01-15T14:00:00Z',
     expert: { id: 'e3', full_name: 'Aisha Patel', email: 'aisha.p@example.com', primary_domain_id: 'd2', seniority_level: 'junior', years_experience: 1, onboarding_status: 'assessment_complete', profile_completed_at: '2026-01-14T14:00:00Z', created_at: '2026-01-12T10:00:00Z' },
   },
   {
@@ -158,7 +158,7 @@ export const mockAssessments: Assessment[] = [
     gaps: ['Minor gaps in deep learning theory'],
     recruiter_decision: 'approved', recruiter_id: 'r1', recruiter_notes: 'Strong candidate, approved for expert pool.', decided_at: '2026-01-07T15:00:00Z',
     flag_count: 0, question_count: 2, started_at: '2026-01-06T10:00:00Z', submitted_at: '2026-01-06T10:40:00Z',
-    graded_at: '2026-01-06T10:41:00Z', expires_at: '2026-01-13T10:00:00Z', created_at: '2026-01-06T10:00:00Z',
+    graded_at: '2026-01-06T10:41:00Z', assigned_at: '2026-01-06T09:00:00Z', expires_at: '2026-01-13T10:00:00Z', created_at: '2026-01-06T10:00:00Z',
     expert: { id: 'e5', full_name: 'Elena Volkov', email: 'elena.v@example.com', primary_domain_id: 'd1', seniority_level: 'mid', years_experience: 3, onboarding_status: 'approved', profile_completed_at: '2026-01-05T10:00:00Z', created_at: '2026-01-03T10:00:00Z' },
   },
   {
@@ -169,7 +169,7 @@ export const mockAssessments: Assessment[] = [
     gaps: ['Critical misunderstandings of schema design', 'ETL best practices not followed', 'Inconsistent with claimed experience level'],
     recruiter_decision: 'rejected', recruiter_id: 'r1', recruiter_notes: 'Responses do not align with claimed 11 years of experience. Rejected.', decided_at: '2026-01-04T11:00:00Z',
     flag_count: 2, question_count: 2, started_at: '2026-01-03T09:00:00Z', submitted_at: '2026-01-03T09:25:00Z',
-    graded_at: '2026-01-03T09:26:00Z', expires_at: '2026-01-10T08:00:00Z', created_at: '2026-01-03T08:00:00Z',
+    graded_at: '2026-01-03T09:26:00Z', assigned_at: '2026-01-03T08:00:00Z', expires_at: '2026-01-10T08:00:00Z', created_at: '2026-01-03T08:00:00Z',
     expert: { id: 'e7', full_name: 'Priya Sharma', email: 'priya.s@example.com', primary_domain_id: 'd2', seniority_level: 'senior', years_experience: 11, onboarding_status: 'rejected', profile_completed_at: '2026-01-02T08:00:00Z', created_at: '2026-01-01T10:00:00Z' },
   },
 ];
@@ -180,52 +180,52 @@ export const mockAssessmentResponses: AssessmentResponse[] = [
   {
     id: 'ar1', assessment_id: 'a1', question_id: 'q2', order_index: 0,
     response_text: 'Approach B is clearly superior for a production recommendation system with severe class imbalance. Accuracy is a misleading metric when classes are imbalanced — a model could achieve 99% accuracy by simply predicting the majority class. PR-AUC (Precision-Recall Area Under Curve) directly measures performance on the minority class, which is critical for recommendation relevance.\n\nStratified time-based splits are essential because recommendation data has temporal dependencies — using future data to predict past behaviour would cause data leakage. Nested cross-validation properly separates hyperparameter tuning from model evaluation, preventing optimistic bias in performance estimates.\n\nIn my production experience at a major e-commerce platform, switching from accuracy to PR-AUC as our primary metric revealed that our "best" model was actually performing poorly on the items users cared most about.',
-    ai_score: 9, override_score: null, ai_feedback: 'Excellent analysis. Correctly identified Approach B with thorough justification covering class imbalance, temporal dependencies, and practical experience.', is_flagged: false, flag_reason: null, submitted_at: '2026-01-11T10:20:00Z',
+    ai_score: 9, override_score: null, ai_feedback: 'Excellent analysis. Correctly identified Approach B with thorough justification covering class imbalance, temporal dependencies, and practical experience.', ai_reasoning: 'Strong comparative reasoning with clear production context.', recruiter_feedback: null, is_flagged: false, flag_reason: null, submitted_at: '2026-01-11T10:20:00Z',
     question: mockQuestions.find(q => q.id === 'q2'),
   },
   {
     id: 'ar2', assessment_id: 'a1', question_id: 'q6', order_index: 1,
     response_text: 'For production anomaly detection in high-dimensional streaming data, I recommend a layered approach:\n\nFeature Engineering: Apply PCA or autoencoder-based dimensionality reduction as a first stage. For streaming data, use incremental PCA variants that update with each batch. Create statistical features (rolling means, standard deviations, percentile ranks) over configurable time windows.\n\nModel Selection: I would use an autoencoder with reconstruction error as the primary anomaly signal. The threshold can be set at the 99th percentile of training reconstruction errors. As a secondary model, Isolation Forest works well for structured features and can provide interpretable anomaly scores. Ensemble the two for robust detection.\n\nMonitoring: Implement concept drift detection using the Page-Hinkley test on the reconstruction error distribution. Set up multi-tier alerting — warning at 2σ, critical at 3σ from baseline. Retrain models monthly or when drift is detected. Track precision of flagged anomalies through human review feedback loops.',
-    ai_score: 8, override_score: null, ai_feedback: 'Strong response covering all three areas. Feature engineering section could have mentioned more advanced streaming-specific techniques. Model selection and monitoring strategies are well-thought-out.', is_flagged: false, flag_reason: null, submitted_at: '2026-01-11T10:45:00Z',
+    ai_score: 8, override_score: null, ai_feedback: 'Strong response covering all three areas. Feature engineering section could have mentioned more advanced streaming-specific techniques. Model selection and monitoring strategies are well-thought-out.', ai_reasoning: 'Solid production anomaly detection plan with monitoring considerations.', recruiter_feedback: null, is_flagged: false, flag_reason: null, submitted_at: '2026-01-11T10:45:00Z',
     question: mockQuestions.find(q => q.id === 'q6'),
   },
   // Assessment a2 (James Rodriguez - mid ML)
   {
     id: 'ar3', assessment_id: 'a2', question_id: 'q1', order_index: 0,
     response_text: 'The bias-variance tradeoff is about finding the right model complexity. Bias is when your model is too simple and misses patterns (underfitting), and variance is when your model is too complex and memorizes noise (overfitting).\n\nTo diagnose high variance, I would look at the gap between training and validation performance. If training accuracy is 98% but validation is 75%, that\'s a clear sign of high variance.\n\nTo fix it, you could try regularization like L1/L2, get more training data, or reduce model complexity by removing features.',
-    ai_score: 6, override_score: null, ai_feedback: 'Adequate definition of bias and variance. The diagnostic approach is correct but could be more detailed. Fix suggestions are valid but lack depth — no specific example from production experience.', is_flagged: false, flag_reason: null, submitted_at: '2026-01-13T14:25:00Z',
+    ai_score: 6, override_score: null, ai_feedback: 'Adequate definition of bias and variance. The diagnostic approach is correct but could be more detailed. Fix suggestions are valid but lack depth — no specific example from production experience.', ai_reasoning: 'Correct high-level explanation with limited production depth.', recruiter_feedback: null, is_flagged: false, flag_reason: null, submitted_at: '2026-01-13T14:25:00Z',
     question: mockQuestions.find(q => q.id === 'q1'),
   },
   {
     id: 'ar4', assessment_id: 'a2', question_id: 'q3', order_index: 1,
     response_text: 'The error in the code is that the data is being split incorrectly. The train_test_split should use stratified splitting to maintain class balance. You should add stratify=y to the split function.\n\nAlso, the model should use cross-validation instead of a single train/test split for more reliable results.',
-    ai_score: 6, override_score: null, ai_feedback: 'The candidate missed the primary error: StandardScaler is fit on the entire dataset before splitting, causing data leakage. While stratified splitting and cross-validation are valid suggestions, they are not the critical issue in this code.', is_flagged: true, flag_reason: 'Candidate missed the primary error (data leakage from scaling before splitting). Response focuses on secondary concerns.', submitted_at: '2026-01-13T14:50:00Z',
+    ai_score: 6, override_score: null, ai_feedback: 'The candidate missed the primary error: StandardScaler is fit on the entire dataset before splitting, causing data leakage. While stratified splitting and cross-validation are valid suggestions, they are not the critical issue in this code.', ai_reasoning: 'Missed the leakage issue and emphasized secondary concerns.', recruiter_feedback: null, is_flagged: true, flag_reason: 'Candidate missed the primary error (data leakage from scaling before splitting). Response focuses on secondary concerns.', submitted_at: '2026-01-13T14:50:00Z',
     question: mockQuestions.find(q => q.id === 'q3'),
   },
   // Assessment a3 (Aisha Patel - junior DE)
   {
     id: 'ar5', assessment_id: 'a3', question_id: 'q4', order_index: 0,
     response_text: 'I think the order should be: extract data, then transform it, then validate, then load it into the warehouse. The extraction comes first because you need the data before you can do anything with it.',
-    ai_score: 3, override_score: null, ai_feedback: 'Extraction correctly placed first, but validation should come before transformation, not after. The ordering shows a fundamental misunderstanding of ETL best practices — data quality checks should prevent bad data from being transformed.', is_flagged: false, flag_reason: null, submitted_at: '2026-01-15T10:15:00Z',
+    ai_score: 3, override_score: null, ai_feedback: 'Extraction correctly placed first, but validation should come before transformation, not after. The ordering shows a fundamental misunderstanding of ETL best practices — data quality checks should prevent bad data from being transformed.', ai_reasoning: 'Incorrect ordering of ETL stages.', recruiter_feedback: null, is_flagged: false, flag_reason: null, submitted_at: '2026-01-15T10:15:00Z',
     question: mockQuestions.find(q => q.id === 'q4'),
   },
   {
     id: 'ar6', assessment_id: 'a3', question_id: 'q8', order_index: 1,
     response_text: 'Star schema and snowflake schema are both used in data warehouses. Star schema has a fact table in the middle with dimension tables around it. Snowflake schema is similar but the dimension tables are normalized into sub-tables. Star schema is simpler and faster for queries.',
-    ai_score: 2, override_score: null, ai_feedback: 'Very surface-level response. While the basic structural difference is mentioned, there is no discussion of performance implications, storage tradeoffs, or appropriate use cases. Minimum expectations for even a junior-level response were not met.', is_flagged: false, flag_reason: null, submitted_at: '2026-01-15T10:30:00Z',
+    ai_score: 2, override_score: null, ai_feedback: 'Very surface-level response. While the basic structural difference is mentioned, there is no discussion of performance implications, storage tradeoffs, or appropriate use cases. Minimum expectations for even a junior-level response were not met.', ai_reasoning: 'Superficial explanation with missing tradeoff discussion.', recruiter_feedback: null, is_flagged: false, flag_reason: null, submitted_at: '2026-01-15T10:30:00Z',
     question: mockQuestions.find(q => q.id === 'q8'),
   },
   // Assessment a4 (Elena Volkov - mid ML - reviewed/approved)
   {
     id: 'ar7', assessment_id: 'a4', question_id: 'q1', order_index: 0,
     response_text: 'The bias-variance tradeoff represents the fundamental tension in model complexity selection. Bias measures systematic error — how far the average model prediction is from the true value. Variance measures sensitivity to training data fluctuations.\n\nHigh variance diagnosis: Compare learning curves between training and validation sets. A large gap that persists even with more data suggests high variance. I diagnosed this in production when our gradient boosted model showed 99.2% train AUC but only 81% on holdout. The fix involved: (1) reducing tree depth from 12 to 6, (2) adding L2 regularization (lambda=0.1), (3) implementing early stopping with patience=10, and (4) adding 20% feature dropout. This brought holdout AUC to 93% while training dropped to 95% — a much healthier gap.',
-    ai_score: 9, override_score: null, ai_feedback: 'Excellent response with precise definitions, practical diagnostic methodology, and a detailed production example with specific parameter choices and measurable outcomes.', is_flagged: false, flag_reason: null, submitted_at: '2026-01-06T10:20:00Z',
+    ai_score: 9, override_score: null, ai_feedback: 'Excellent response with precise definitions, practical diagnostic methodology, and a detailed production example with specific parameter choices and measurable outcomes.', ai_reasoning: 'Excellent technical explanation with concrete production example.', recruiter_feedback: null, is_flagged: false, flag_reason: null, submitted_at: '2026-01-06T10:20:00Z',
     question: mockQuestions.find(q => q.id === 'q1'),
   },
   {
     id: 'ar8', assessment_id: 'a4', question_id: 'q3', order_index: 1,
     response_text: 'The critical data leakage error is that StandardScaler.fit_transform() is called on the entire dataset X before train_test_split. This means the scaler\'s mean and standard deviation are computed using test data, which leaks information about the test distribution into the training process.\n\nThe correct approach:\n1. First split the data: X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)\n2. Fit the scaler on training data only: scaler.fit(X_train)\n3. Transform both sets: X_train_scaled = scaler.transform(X_train), X_test_scaled = scaler.transform(X_test)\n\nThis ensures the model is evaluated on truly unseen data. In practice, I use sklearn Pipeline objects to encapsulate preprocessing and model steps, which automatically handles this correctly during cross-validation.',
-    ai_score: 7, override_score: null, ai_feedback: 'Correctly identified the data leakage issue with a clear explanation of the fix. Bonus for mentioning Pipeline objects as a best practice.', is_flagged: false, flag_reason: null, submitted_at: '2026-01-06T10:40:00Z',
+    ai_score: 7, override_score: null, ai_feedback: 'Correctly identified the data leakage issue with a clear explanation of the fix. Bonus for mentioning Pipeline objects as a best practice.', ai_reasoning: 'Correctly identified leakage and proposed proper preprocessing workflow.', recruiter_feedback: null, is_flagged: false, flag_reason: null, submitted_at: '2026-01-06T10:40:00Z',
     question: mockQuestions.find(q => q.id === 'q3'),
   },
 ];

@@ -218,13 +218,21 @@ export default function AssessmentDetail() {
       </div>
 
       {/* Header */}
-      <div className="mb-4" style={{ display: 'grid', gap: 24, marginTop: 16 }}>
-        <div className="card">
-            <div className="flex items-center gap-4 mb-4">
+      <div
+        style={{
+          marginTop: 16,
+          display: 'grid',
+          gridTemplateColumns: 'minmax(0, 1.7fr) minmax(320px, 0.9fr)',
+          gap: 20,
+          alignItems: 'start',
+        }}
+      >
+        <div className="card" style={{ margin: 0, padding: 18, borderRadius: 12, display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="flex items-center gap-4">
               <div className="application-avatar" style={{ width: 56, height: 56, fontSize: 20 }}>
                 {assessment.expert?.full_name.split(' ').map(n => n[0]).join('').toUpperCase()}
               </div>
-              <div>
+              <div style={{ minWidth: 0, flex: 1 }}>
                 <h2 style={{ marginBottom: 2 }}>{assessment.expert?.full_name}</h2>
                 <div className="text-sm text-muted">{assessment.expert?.email}</div>
                 <div className="text-sm text-muted">
@@ -233,31 +241,6 @@ export default function AssessmentDetail() {
                 </div>
               </div>
             </div>
-
-            <div className="flex items-center gap-4 mb-4">
-              {/* <div className="detail-score-display" style={{ padding: 16 }}>
-                <div className="score-number" style={{ color: pctColor }}>{currentPct}%</div>
-                <div className="score-label">{currentTotal} / 60</div>
-              </div> */}
-              {/* <div style={{ flex: 1 }}>
-                <div className="score-bar mb-2">
-                  <div className={`score-bar-fill ${barClass}`} style={{ width: `${currentPct}%` }} />
-                </div>
-                <div className="flex justify-between">
-                  {assessment.ai_recommendation && (
-                    <span className={`badge ${assessment.ai_recommendation}`}>
-                      AI: {assessment.ai_recommendation.toUpperCase()}
-                    </span>
-                  )}
-                  {assessment.flag_count > 0 && (
-                    <span className="flag-badge">
-                      <Flag size={14} /> {assessment.flag_count} flagged
-                    </span>
-                  )}
-                </div>
-              </div> */}
-            </div>
-          
 
             {isVoiceAssessment ? (
               <VoiceAssessmentReport
@@ -277,7 +260,7 @@ export default function AssessmentDetail() {
         </div>
 
         {/* Recruiter Decision Accordion */}
-        <div className="card">
+        <div className="card" style={{ margin: 0, padding: 18, borderRadius: 12, position: 'sticky', top: 20 }}>
           <button
             type="button"
             onClick={() => setDecisionOpen(prev => !prev)}

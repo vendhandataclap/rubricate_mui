@@ -35,7 +35,7 @@ function loadTheme(): Theme {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored === 'light' || stored === 'dark' || stored === 'system') return stored
   } catch { /* ignore */ }
-  return 'system'
+  return 'dark'
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null)
